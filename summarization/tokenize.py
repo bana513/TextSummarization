@@ -26,6 +26,6 @@ if __name__ == "__main__":
 
     print(len(summaries), len(contents))
 
-    with open(Config.data_path + "hvg_tokenized_.pickle", 'wb') as f:
+    with open(Config.data_path + "hvg_tokenized.pickle", 'wb') as f:
         pickle.dump((contents, summaries), f)
 
