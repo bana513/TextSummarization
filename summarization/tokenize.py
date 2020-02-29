@@ -1,8 +1,8 @@
-import pandas as pd
 from summarization.config import Config
 from transformers import BertTokenizer
 from tqdm import tqdm
 import pickle
+import pandas as pd
 
 
 if __name__ == "__main__":
@@ -16,16 +16,18 @@ if __name__ == "__main__":
     for index, row in tqdm(df.iterrows(), total=df.shape[0]):
         if pd.isna(row.content) or pd.isna(row.description): continue
 
-        content = tokenizer.tokenize(row.content)
+        content = tokenizer.encode(row.content)
         if 20 < len(content) <= 512:
-            summary = tokenizer.tokenize(row.description)
+            summary = tokenizer.encode(row.description)
 
             if 8 < len(summary) <= len(content) // 2:
-                summaries.append(tokenizer.convert_tokens_to_ids(summary))
-                contents.append(tokenizer.convert_tokens_to_ids(content))
+                summaries.append(summary)
+                contents.append(content)
+
+        if len(summaries) >= 100: break
 
     print(len(summaries), len(contents))
 
-    with open(Config.data_path + "hvg_tokenized.pickle", 'wb') as f:
+    with open(Config.data_path + "hvg_tokenized_small.pickle", 'wb') as f:
         pickle.dump((contents, summaries), f)
 
