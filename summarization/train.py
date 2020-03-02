@@ -8,7 +8,6 @@ from summarization.progress_bar import ProgressBar
 from summarization.sampler import NoisySortedBatchSampler
 from torch.utils.data import DataLoader
 from torch.optim.adamw import AdamW
-from tqdm import tqdm
 
 
 if __name__ == '__main__':
@@ -40,21 +39,13 @@ if __name__ == '__main__':
 
     progress_bar = ProgressBar(len(train_loader))
 
-    running_loss = None
-
     for epoch in range(Config.num_epochs):
         progress_bar.start()
         for batch in train_loader:
-
             preds, attns = model(batch)  # batch = (content_tensors, content_lengths, summary_tensors, summary_lengths)
 
             target = batch[2]
             loss = criterion(preds.permute(0,2,1), target.to(Config.device))
-
-            if running_loss is None:
-                running_loss = loss.item()
-            running_loss = .95 * running_loss + .05 * loss.item()
-            print(f"Loss: {running_loss}", end="")
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(),
@@ -63,9 +54,10 @@ if __name__ == '__main__':
             optimizer.step()
             scheduler.step()
 
-            progress_bar.update()
+            progress_bar.update(loss=loss.item())
             progress_bar.progress()
-        print(f"\rEpoch: {epoch + 1}, loss: {running_loss}")
+
+        print(f"\rEpoch: {epoch + 1}\tLoss: {progress_bar.loss}")
         progress_bar.stop()
 
 

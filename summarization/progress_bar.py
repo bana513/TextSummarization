@@ -2,10 +2,13 @@ import time
 
 
 class ProgressBar:
-    def __init__(self, total_items, start=True):
+    def __init__(self, total_items, start=True, ema=.95):
         self.total_items = total_items
         self.count = 0
         self.start_time, self.end_time = None, None
+        self.ema = ema
+        self.loss = None
+
         if start:
             self.start_time = time.time()
 
@@ -13,15 +16,19 @@ class ProgressBar:
         self.start_time = time.time()
         self.count = 0
 
-    def update(self, item_num=1, print_progress=True):
+    def update(self, item_num=1, loss=None, print_progress=True):
         self.count += item_num
+        if loss is not None:
+            self.loss = (self.ema * self.loss + (1-self.ema) * loss) if self.loss is not None else loss
         if print_progress:
             self.progress()
 
     def progress(self):
         elapsed_sec = time.time() - self.start_time
         predicted_sec = (self.total_items - self.count) / self.count * elapsed_sec
-        print(f'\r{self.count}\t/{self.total_items}\t({format_sec(elapsed_sec)} - {format_sec(predicted_sec)})', end='')
+        print(f'\r{self.count}\t/{self.total_items}\t({format_sec(elapsed_sec)} - {format_sec(predicted_sec)})' +
+              f'\tLoss:{self.loss:2.4f}' if self.loss is not None else "",
+              end='')
 
     def stop(self):
         self.end_time = time.time()
