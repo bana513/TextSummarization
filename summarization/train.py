@@ -1,27 +1,22 @@
 import torch
 from torch.nn import NLLLoss
-from summarization.config import Config
+from torch.optim.adamw import AdamW
 from transformers import get_linear_schedule_with_warmup
-from summarization.data import SummarizationDataset, collate
+
+from summarization.config import Config
+from summarization.data import read_dataset, split_dataset, get_data_loader
 from summarization.model import BertSummarizer
 from summarization.progress_bar import ProgressBar
-from summarization.sampler import NoisySortedBatchSampler
-from torch.utils.data import DataLoader
-from torch.optim.adamw import AdamW
-
 
 if __name__ == '__main__':
     Config()
     device = Config.device
 
-    train_dataset = SummarizationDataset(Config.data_path + "hvg_tokenized.pickle", Config.batch_size)
-    train_sampler = NoisySortedBatchSampler(train_dataset, batch_size=Config.batch_size, drop_last=True,
-                                            shuffle=True, sort_key_noise=0.02)
-    train_loader = DataLoader(train_dataset,
-                              collate_fn=collate,
-                              num_workers=5,
-                              batch_sampler=train_sampler)
-    print("Number of batches:", len(train_loader))
+    contents, summaries = read_dataset(Config.data_path + "hvg_tokenized.pickle")
+    train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .9)
+    train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
+    valid_loader = get_data_loader(valid_contents, valid_summaries, train_set=False)
+    print(f"# samples: {len(contents)}, # train batches: {len(train_loader)}")
 
     model = BertSummarizer().to(device)
     print("Total params: " + str(sum(p.numel() for p in model.parameters())))
@@ -45,7 +40,7 @@ if __name__ == '__main__':
             preds, attns = model(batch)  # batch = (content_tensors, content_lengths, summary_tensors, summary_lengths)
 
             target = batch[2]
-            loss = criterion(preds.permute(0,2,1), target.to(Config.device))
+            loss = criterion(preds.permute(0, 2, 1), target.to(Config.device))
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(),
@@ -58,6 +53,3 @@ if __name__ == '__main__':
             progress_bar.progress()
 
         print(f"\rEpoch: {epoch + 1}\tLoss: {progress_bar.loss}")
-        progress_bar.stop()
-
-
