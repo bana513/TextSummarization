@@ -1,6 +1,7 @@
 import pickle
 
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 
 from summarization.config import Config
@@ -22,6 +23,8 @@ def split_dataset(contents, summaries, split=.9):
 class SummarizationDataset(Dataset):
     def __init__(self, contents, summaries, batch_size):
         self.batch_size = batch_size
+
+        assert len(contents) == len(summaries)
         self.contents = contents
         self.summaries = summaries
 
@@ -35,26 +38,12 @@ class SummarizationDataset(Dataset):
 def collate(batch):
     contents, summaries = zip(*batch)
 
-    padded_contents, content_sizes = pad_sequence(contents, Config.PAD_ID)
-    padded_summaries, summary_sizes = pad_sequence(summaries, Config.PAD_ID)
+    content_sizes = torch.tensor([c.shape[0] for c in contents])
+    padded_contents = pad_sequence(contents, batch_first=True, padding_value=Config.PAD_ID)
+    summary_sizes = torch.tensor([s.shape[0] for s in summaries])
+    padded_summaries = pad_sequence(summaries, batch_first=True, padding_value=Config.PAD_ID)
 
     return padded_contents, content_sizes, padded_summaries, summary_sizes
-
-
-# based on pytorch's pad_sequence
-def pad_sequence(sequences, padding_value=0):
-    max_size = sequences[0].size()
-    trailing_dims = max_size[1:]
-
-    lengths = [s.size(0) for s in sequences]
-    max_len = max(lengths)
-
-    out_dims = (len(sequences), max_len) + trailing_dims
-    out_tensor = sequences[0].data.new(*out_dims).fill_(padding_value)
-    for i, tensor in enumerate(sequences):
-        length = tensor.size(0)
-        out_tensor[i, :length, ...] = tensor
-    return out_tensor, torch.LongTensor(lengths)
 
 
 def get_data_loader(contents, summaries, train_set=True):
@@ -66,6 +55,6 @@ def get_data_loader(contents, summaries, train_set=True):
                                       sort_key_noise=0.02 if train_set else 0)
     loader = DataLoader(dataset,
                         collate_fn=collate,
-                        num_workers=0,
+                        num_workers=0,  # https://github.com/pytorch/pytorch/issues/13246
                         batch_sampler=sampler)
     return loader
