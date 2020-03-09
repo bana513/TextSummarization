@@ -24,8 +24,10 @@ class BertSummarizer(nn.Module):
 
     def forward(self, batch, teacher_forcing_ratio=1.0, max_len=256):
         padded_contents, content_sizes, padded_summaries, summary_sizes = batch
+
         padded_contents = padded_contents.to(Config.device)
-        padded_summaries = padded_summaries.to(Config.device)
+        if padded_summaries is not None:
+            padded_summaries = padded_summaries.to(Config.device)
 
         attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
 
@@ -51,8 +53,8 @@ class Decoder(nn.Module):
         self.decoder_linear = nn.Linear(in_features=Config.decoder_hidden_dim, out_features=Config.decoder_token_num)
 
         self.embedding = nn.Linear(Config.embed_dim, Config.vocab_size)
-        self.embedding.weight.data = bert_embedding.weight.data.transpose(0, 1)
-        self.embedding.weight.requires_grad = False
+        # self.embedding.weight.data = bert_embedding.weight.data.transpose(0, 1)
+        # self.embedding.weight.requires_grad = False
 
         # initializations
         nn.init.xavier_uniform_(self.query_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
