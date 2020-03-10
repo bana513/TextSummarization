@@ -8,14 +8,15 @@ from summarization.data import read_dataset, split_dataset, get_data_loader
 from summarization.evaluation import evaluate_and_show_attention, test_text
 from summarization.model import BertSummarizer
 from summarization.progress_bar import ProgressBar
+from summarization.tokenizer import SmartTokenizer
 
 if __name__ == '__main__':
     Config()
     device = Config.device
 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
+    tokenizer = SmartTokenizer()
 
-    contents, summaries = read_dataset(Config.data_path + "hvg_tokenized.pickle")
+    contents, summaries = read_dataset(Config.data_path + "hvg_tokenized_shrink.pickle")
     train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .9)
     train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
     valid_loader = get_data_loader(valid_contents, valid_summaries, train_set=False)

@@ -6,7 +6,13 @@ import numpy as np
 from torch import nn
 from transformers import BertModel
 from summarization.config import Config
+from summarization.tokenizer import UsedBertTokens
 from summarization.utils import get_mask_from_lengths
+
+
+def shrink_embedding_layer(embedding_layer):
+    token_ids = UsedBertTokens.get_instance().token_ids
+    embedding_layer.weight.data = embedding_layer.weight[token_ids]
 
 
 class BertSummarizer(nn.Module):
@@ -41,7 +47,7 @@ class BertSummarizer(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, bert_embedding):
         super().__init__()
-        self.decoder = nn.LSTM(input_size=Config.encoder_dim + Config.embed_dim,
+        self.decoder = nn.LSTM(input_size=Config.encoder_dim*2,
                                hidden_size=Config.decoder_hidden_dim,
                                batch_first=True)
 
@@ -52,10 +58,6 @@ class Decoder(nn.Module):
         self.attention = BahdanauAttention(Config.attention_dim)
         self.decoder_linear = nn.Linear(in_features=Config.decoder_hidden_dim, out_features=Config.decoder_token_num)
 
-        self.embedding = nn.Linear(Config.embed_dim, Config.vocab_size)
-        # self.embedding.weight.data = bert_embedding.weight.data.transpose(0, 1)
-        # self.embedding.weight.requires_grad = False
-
         # initializations
         nn.init.xavier_uniform_(self.query_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
         nn.init.xavier_uniform_(self.key_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
@@ -63,7 +65,7 @@ class Decoder(nn.Module):
 
     def forward(self, features, attn_mask, padded_summaries, teacher_forcing_ratio, max_len):
         batch_size, seq_len, features_num = features.shape
-        prev_word = torch.tensor([Config.CLS_ID] * batch_size, device=features.device)
+        prev_word = torch.tensor([Config.S_ID] * batch_size, device=features.device)
         hidden = (torch.zeros((1, batch_size, Config.decoder_hidden_dim), device=features.device),
                   torch.zeros((1, batch_size, Config.decoder_hidden_dim), device=features.device))
 
