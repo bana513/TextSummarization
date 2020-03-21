@@ -10,8 +10,7 @@ from summarization.evaluation import evaluate_and_show_attention, test_text, val
 from summarization.model import BertSummarizer
 from summarization.progress_bar import ProgressBar
 from summarization.tokenizer import SmartTokenizer
-
-
+from summarization.utils import save_model
 
 if __name__ == '__main__':
     Config()
@@ -95,3 +94,6 @@ if __name__ == '__main__':
 
         print(f"\rEpoch: {epoch + 1}\tTrain loss: {progress_bar.loss:2.3f}" +
               f"\tValid loss: {val_loss:2.3f}\tValid accuracy: {val_acc*100:2.4f}%")
+
+        # Save model
+        save_model(model.decoder, optimizer, epoch)
