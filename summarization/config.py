@@ -5,13 +5,17 @@ from summarization.tokenizer import UsedBertTokens
 
 class Config:
     device = torch.device("cuda:0")
-    data_path = "D:/Data/text_summarization/"
-    # data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"
+    data_path = "D:/Data/text_summarization/"  # local path
+    # data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"  # remote server path
+
+    # Tensorboard info
+    model_name = "test"
+    graph_prefix = "LSTM"
 
     # Parameters:
     batch_size = 24
     lr = 1e-3
-    num_epochs = 10
+    num_epochs = 2
     num_warmup_steps = 100
     max_len = 512
     vocab_size = decoder_token_num = None
@@ -27,5 +31,5 @@ class Config:
         if Config.device.type == 'cuda':
             torch.cuda.set_device(self.device)
 
-        UsedBertTokens(Config.data_path)
+        UsedBertTokens(Config.data_path)  # Load token id translator
         Config.vocab_size = Config.decoder_token_num = len(UsedBertTokens.get_instance().token_ids)

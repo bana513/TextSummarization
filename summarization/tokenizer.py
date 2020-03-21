@@ -27,6 +27,11 @@ class UsedBertTokens:
 
 
 class SmartTokenizer:
+    """
+    BertTokenizer without unused tokens (based on a specific language)
+    what allows to train smaller models
+    """
+
     def __init__(self, UNK_ID=100):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 

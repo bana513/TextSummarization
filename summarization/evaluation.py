@@ -8,7 +8,7 @@ from summarization.progress_bar import ProgressBar
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 
 
-def validate_model(model, criterion, valid_loader, tokenizer, verbose=True):
+def validate_model(model, criterion, valid_loader, tokenizer, summary_writer=None, step=None, verbose=True):
     if verbose: print()
     model.eval()
 
@@ -45,6 +45,10 @@ def validate_model(model, criterion, valid_loader, tokenizer, verbose=True):
         evaluate_and_show_attention(model, test_text, tokenizer)
 
     loss, acc = total_loss / n, total_acc / n
+
+    if summary_writer is not None and step is not None:
+        summary_writer.add_scalar("valid_loss", loss, step)
+
     return loss, acc
 
 
