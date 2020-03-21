@@ -74,15 +74,15 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            if progress_bar.count % 20 == 0:
+            if progress_bar.count % 50 == 0:
                 evaluate_and_show_attention(model, test_text, tokenizer,
                                             iteration=epoch+progress_bar.count/epoch_steps)
                 model.train()
 
             # Update tensorboard
-            # if progress_bar.count % 2 == 0:
-            counter = epoch * progress_bar.total_items + progress_bar.count
-            summary_writer.add_scalar(f'train_loss', progress_bar.loss, counter)
+            if progress_bar.count % 10 == 0:
+                counter = epoch * progress_bar.total_items + progress_bar.count
+                summary_writer.add_scalar(f'train_loss', progress_bar.loss, counter)
 
         # Validate model every epoch
         val_loss, val_acc = validate_model(model=model,
