@@ -8,44 +8,44 @@ from summarization.progress_bar import ProgressBar
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 
 
-def validate_model(model, criterion, valid_loader, encoder_processor, decoder_processor, loss_printer, summary_writer):
-    print("Validating...")
+def validate_model(model, criterion, valid_loader, tokenizer, verbose=True):
+    if verbose: print()
     model.eval()
 
     progress_bar = ProgressBar(len(valid_loader))
     progress_bar.start()
     total_acc, total_loss, n = 0, 0, 0
     with torch.no_grad():
-        for data in valid_loader:
-            padded_contents, content_sizes, padded_summaries, _ = data
-            padded_contents = padded_contents.to(Config.device)
-            padded_summaries = padded_summaries.to(Config.device)
+        for batch in valid_loader:
+            padded_contents, _, padded_summaries, _ = batch
             max_len = padded_summaries.shape[1]
-            output, _ = model(padded_contents, content_sizes, padded_summaries, teacher_forcing_ratio=1.0, max_len=max_len)
-            loss = criterion(output.view(-1, Config.decoder_token_num), padded_summaries.view(-1))
+
+            preds, _ = model(batch, teacher_forcing_ratio=1.0, max_len=max_len)
+            loss = criterion(preds.permute(0, 2, 1), padded_summaries.to(Config.device))
 
             total_loss += loss.item()
             n += 1
             progress_bar.update()
 
-        for data in valid_loader:
-            padded_contents, content_sizes, padded_summaries, summary_sizes = data
+        if verbose:
+            for batch in valid_loader:
+                padded_contents, content_sizes, padded_summaries, summary_sizes = batch
 
-            padded_contents = padded_contents.to(Config.device)
+                preds, attentions = model(batch, teacher_forcing_ratio=0.0, max_len=max_len)
 
-            output, attentions = model(padded_contents, content_sizes, None, teacher_forcing_ratio=0.0)
-            output = output.argmax(2).detach().cpu()
-            for i in range(min(output.shape[0], 10)):
-                print("\nContent:\n" + encoder_processor.decode(padded_contents[i][:content_sizes[i]].tolist()))
-                print("Summary:\n" + decoder_processor.decode(padded_summaries[i][:summary_sizes[i]].tolist()))
-                print("Prediction:\n" + decoder_processor.decode(output[i].tolist()))
-            break
+                output = preds.argmax(2).detach().cpu()
 
-        evaluate_and_show_attention(model,
-                                    test_text,
-                                    encoder_processor, decoder_processor)
+                # Print first 10 examples from first batch
+                for i in range(min(output.shape[0], 10)):
+                    print("\nContent:\n" + tokenizer.decode(padded_contents[i][:content_sizes[i]].tolist()))
+                    print("Summary:\n" + tokenizer.decode(padded_summaries[i][:summary_sizes[i]].tolist()))
+                    print("Prediction:\n" + tokenizer.decode(output[i].tolist()))
+                break
+
+        evaluate_and_show_attention(model, test_text, tokenizer)
 
     loss, acc = total_loss / n, total_acc / n
+    return loss, acc
 
 
 def evaluate(model, input_text, tokenizer, max_len=100):

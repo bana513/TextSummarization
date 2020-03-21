@@ -5,7 +5,7 @@ from transformers import get_linear_schedule_with_warmup, BertTokenizer
 
 from summarization.config import Config
 from summarization.data import read_dataset, split_dataset, get_data_loader
-from summarization.evaluation import evaluate_and_show_attention, test_text
+from summarization.evaluation import evaluate_and_show_attention, test_text, validate_model
 from summarization.model import BertSummarizer
 from summarization.progress_bar import ProgressBar
 from summarization.tokenizer import SmartTokenizer
@@ -61,4 +61,11 @@ if __name__ == '__main__':
             progress_bar.update(loss=loss.item())
             progress_bar.progress()
 
-        print(f"\rEpoch: {epoch + 1}\tLoss: {progress_bar.loss}")
+        val_loss, val_acc = validate_model(model=model,
+                                           criterion=criterion,
+                                           valid_loader=valid_loader,
+                                           tokenizer=tokenizer,
+                                           verbose=True)
+
+        print(f"\rEpoch: {epoch + 1}\tTrain loss: {progress_bar.loss:2.3f}" +
+              f"\tValid loss: {val_loss:2.3f}\tValid accuracy: {val_acc*100:2.4f}%")
