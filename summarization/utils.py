@@ -1,5 +1,5 @@
 import torch
-from summarization.config import Config
+from summarization import Config
 
 
 def get_mask_from_lengths(lengths):
@@ -11,5 +11,5 @@ def get_mask_from_lengths(lengths):
 def save_model(model, optimizer, epoch):
     print("Saving model...")
     torch.save(model.state_dict(), f"{Config.data_path}/models/{Config.model_name}_{str(epoch)}.pth")
-    torch.save(optimizer.state_dict(), f"models/{Config.model_name}_{str(epoch)}_optimizer_state.pth")
+    torch.save(optimizer.state_dict(), f"{Config.data_path}/models/{Config.model_name}_{str(epoch)}_optimizer_state.pth")
 

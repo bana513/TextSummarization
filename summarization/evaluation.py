@@ -2,8 +2,8 @@ import torch
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 
-from summarization.config import Config
-from summarization.progress_bar import ProgressBar
+from summarization import Config
+from summarization import ProgressBar
 
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 
@@ -76,7 +76,7 @@ def evaluate(model, input_text, tokenizer, max_len=100):
     return output_words, attention
 
 
-def show_attention(input_sentence, output_words, attentions, iteration=0):
+def show_attention(input_sentence, output_words, attentions, iteration=0, to_file=False):
     # Set up figure with colorbar
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111)
@@ -92,12 +92,17 @@ def show_attention(input_sentence, output_words, attentions, iteration=0):
     # Show label at every tick
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-    plt.show()
+
+    if to_file:
+        plt.savefig(f"{Config.data_path}/plots/{Config.model_name}_{iteration:01.4f}.jpg")
+    else:
+        plt.show()
 
 
-def evaluate_and_show_attention(model, input_text, tokenizer, iteration=0):
+
+def evaluate_and_show_attention(model, input_text, tokenizer, iteration=0, to_file=False):
     output_words, attentions = evaluate(model, input_text, tokenizer)
     encoded_input = [tokenizer.decode([w]) for w in tokenizer.encode(input_text)]
     print('\ninput = ', ' '.join(encoded_input))
     print('output =', ' '.join(output_words))
-    show_attention(encoded_input, output_words, attentions, iteration)
+    show_attention(encoded_input, output_words, attentions, iteration, to_file)

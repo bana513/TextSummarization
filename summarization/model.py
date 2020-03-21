@@ -5,9 +5,9 @@ import numpy as np
 
 from torch import nn
 from transformers import BertModel
-from summarization.config import Config
-from summarization.tokenizer import UsedBertTokens
-from summarization.utils import get_mask_from_lengths
+from summarization import Config
+from summarization import UsedBertTokens
+from summarization import get_mask_from_lengths
 
 
 def shrink_embedding_layer(embedding_layer):

@@ -4,13 +4,13 @@ from torch.optim.adamw import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import get_linear_schedule_with_warmup, BertTokenizer
 
-from summarization.config import Config
-from summarization.data import read_dataset, split_dataset, get_data_loader
-from summarization.evaluation import evaluate_and_show_attention, test_text, validate_model
-from summarization.model import BertSummarizer
-from summarization.progress_bar import ProgressBar
-from summarization.tokenizer import SmartTokenizer
-from summarization.utils import save_model
+from summarization import Config
+from summarization import read_dataset, split_dataset, get_data_loader
+from summarization import evaluate_and_show_attention, test_text, validate_model
+from summarization import BertSummarizer
+from summarization import ProgressBar
+from summarization import SmartTokenizer
+from summarization import save_model
 
 if __name__ == '__main__':
     Config()
@@ -75,7 +75,8 @@ if __name__ == '__main__':
             # Show attention plot
             if progress_bar.count % 50 == 0:
                 evaluate_and_show_attention(model, test_text, tokenizer,
-                                            iteration=epoch+progress_bar.count/epoch_steps)
+                                            iteration=epoch+progress_bar.count/epoch_steps,
+                                            to_file=True)
                 model.train()
 
             # Update tensorboard

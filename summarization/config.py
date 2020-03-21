@@ -1,6 +1,6 @@
 import torch
 
-from summarization.tokenizer import UsedBertTokens
+from summarization import UsedBertTokens
 
 
 class Config:
@@ -9,8 +9,7 @@ class Config:
     # data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"  # remote server path
 
     # Tensorboard info
-    model_name = "test"
-    graph_prefix = "LSTM"
+    model_name = "lstm"
 
     # Parameters:
     batch_size = 24

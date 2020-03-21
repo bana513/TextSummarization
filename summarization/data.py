@@ -3,9 +3,8 @@ import pickle
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
-
-from summarization.config import Config
-from summarization.sampler import NoisySortedBatchSampler
+from summarization import Config
+from summarization import NoisySortedBatchSampler
 
 
 def read_dataset(file):
