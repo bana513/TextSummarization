@@ -19,9 +19,10 @@ if __name__ == '__main__':
     tokenizer = SmartTokenizer()
 
     contents, summaries = read_dataset(Config.data_path + "hvg_tokenized_shrink.pickle")
-    train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .95)
+    train_contents, train_summaries, _, _ = split_dataset(contents, summaries, .95)
+    train_contents, train_summaries, valid_tf_contents, valid_tf_summaries = split_dataset(train_contents, train_summaries, .95)
     train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
-    valid_loader = get_data_loader(valid_contents, valid_summaries, train_set=False)
+    valid_tf_loader = get_data_loader(valid_tf_contents, valid_tf_summaries, train_set=False)
     print(f"# samples: {len(contents)}, # train batches: {len(train_loader)}")
 
     model = BertSummarizer().to(device)
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         # Validate model every epoch
         val_loss, val_acc = validate_model(model=model,
                                            criterion=criterion,
-                                           valid_loader=valid_loader,
+                                           valid_loader=valid_tf_loader,
                                            tokenizer=tokenizer,
                                            summary_writer=summary_writer,
                                            step=(epoch+1)*epoch_steps,

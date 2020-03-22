@@ -31,7 +31,7 @@ class SummarizationDataset(Dataset):
         return torch.LongTensor(self.contents[idx]), torch.LongTensor(self.summaries[idx])
 
     def __len__(self):
-        return 256 #len(self.contents)
+        return len(self.contents)
 
 
 def collate(batch):
