@@ -97,4 +97,4 @@ if __name__ == '__main__':
               f"\tValid loss: {val_loss:2.3f}\tValid accuracy: {val_acc*100:2.4f}%")
 
         # Save model
-        save_model(model.decoder, optimizer, epoch)
+        save_model(model.decoder, optimizer, epoch+1)

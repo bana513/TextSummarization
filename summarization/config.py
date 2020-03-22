@@ -8,7 +8,7 @@ class Config:
     on_server = True
 
     # Load model
-    load_state = 0
+    load_state = 1  # Set None for new model
 
     if on_server:
         device = torch.device("cuda:1")
