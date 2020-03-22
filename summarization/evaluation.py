@@ -84,7 +84,6 @@ def evaluate(model, input_text, tokenizer, max_len=100):
 
 
 def show_attention(input_sentence, output_words, attentions, iteration=0, to_file=Config.on_server):
-    print("show attention")
     # Set up figure with colorbar
     fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111)
@@ -102,10 +101,8 @@ def show_attention(input_sentence, output_words, attentions, iteration=0, to_fil
     ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
     if to_file:
-        print("savefig")
         plt.savefig(f"{Config.data_path}plots/{Config.model_name}_{iteration:01.4f}.jpg")
     else:
-        print("show")
         plt.show()
 
 

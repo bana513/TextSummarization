@@ -2,15 +2,11 @@ import torch
 from torch.nn import NLLLoss
 from torch.optim.adamw import AdamW
 from torch.utils.tensorboard import SummaryWriter
-from transformers import get_linear_schedule_with_warmup, BertTokenizer
+from transformers import get_linear_schedule_with_warmup
 
-from summarization import Config
-from summarization import read_dataset, split_dataset, get_data_loader
-from summarization import evaluate_and_show_attention, test_text, validate_model
-from summarization import BertSummarizer
-from summarization import ProgressBar
-from summarization import SmartTokenizer
-from summarization import save_model
+from summarization import Config, load_model, read_dataset, split_dataset, get_data_loader, \
+    evaluate_and_show_attention, test_text, validate_model, BertSummarizer, ProgressBar,\
+    SmartTokenizer, save_model
 
 if __name__ == '__main__':
     Config()
@@ -47,7 +43,11 @@ if __name__ == '__main__':
     summary_writer.add_hparams({k: str(v) for k, v in Config.__dict__.items() if not k.startswith('__')}, {})
     summary_writer.add_hparams({"epoch_steps": epoch_steps}, {})
 
-    for epoch in range(Config.num_epochs):
+    if Config.load_state is not None:
+        load_model(model.decoder, optimizer, Config.load_state)
+
+    for epoch in range(0 if Config.load_state is None else Config.load_state,
+                       Config.num_epochs):
         model.train()
         progress_bar.start()
 

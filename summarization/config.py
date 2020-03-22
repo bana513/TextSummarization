@@ -7,20 +7,23 @@ import matplotlib
 class Config:
     on_server = True
 
+    # Load model
+    load_state = 0
+
     if on_server:
         device = torch.device("cuda:1")
         data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"  # remote server path
-
+        batch_size = 24
         matplotlib.use('Agg')
     else:
         device = torch.device("cuda:0")
         data_path = "D:/Data/text_summarization/"  # local path
+        batch_size = 24
 
     # Tensorboard info
     model_name = "lstm"
 
     # Parameters:
-    batch_size = 24
     lr = 1e-3
     num_epochs = 10
     num_warmup_steps = 100
