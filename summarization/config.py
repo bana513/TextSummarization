@@ -1,12 +1,20 @@
 import torch
 
 from summarization import UsedBertTokens
+import matplotlib
 
 
 class Config:
-    device = torch.device("cuda:0")
-    data_path = "D:/Data/text_summarization/"  # local path
-    # data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"  # remote server path
+    on_server = True
+
+    if on_server:
+        device = torch.device("cuda:1")
+        data_path = "/userhome/student/bial/remotepycharm/data/text_summarization/"  # remote server path
+
+        matplotlib.use('Agg')
+    else:
+        device = torch.device("cuda:0")
+        data_path = "D:/Data/text_summarization/"  # local path
 
     # Tensorboard info
     model_name = "lstm"
@@ -14,7 +22,7 @@ class Config:
     # Parameters:
     batch_size = 24
     lr = 1e-3
-    num_epochs = 2
+    num_epochs = 10
     num_warmup_steps = 100
     max_len = 512
     vocab_size = decoder_token_num = None

@@ -75,8 +75,7 @@ if __name__ == '__main__':
             # Show attention plot
             if progress_bar.count % 50 == 0:
                 evaluate_and_show_attention(model, test_text, tokenizer,
-                                            iteration=epoch+progress_bar.count/epoch_steps,
-                                            to_file=True)
+                                            iteration=epoch+progress_bar.count/epoch_steps)
                 model.train()
 
             # Update tensorboard
