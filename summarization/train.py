@@ -15,10 +15,12 @@ if __name__ == '__main__':
     tokenizer = SmartTokenizer()
 
     contents, summaries = read_dataset(Config.data_path + "hvg_tokenized_shrink.pickle")
-    train_contents, train_summaries, _, _ = split_dataset(contents, summaries, .95)
+    train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .95)
     train_contents, train_summaries, valid_tf_contents, valid_tf_summaries = split_dataset(train_contents, train_summaries, .95)
     train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
     valid_tf_loader = get_data_loader(valid_tf_contents, valid_tf_summaries, train_set=False)
+    valid_loader = get_data_loader(valid_contents, valid_summaries, train_set=False)
+
     print(f"# samples: {len(contents)}, # train batches: {len(train_loader)}")
 
     model = BertSummarizer().to(device)
@@ -80,21 +82,27 @@ if __name__ == '__main__':
                 model.train()
 
             # Update tensorboard
-            if progress_bar.count % 10 == 0:
+            if progress_bar.count % 2 == 0:
                 counter = epoch * progress_bar.total_items + progress_bar.count
-                summary_writer.add_scalar(f'train_loss', progress_bar.loss, counter)
+                summary_writer.add_scalars('Loss', {
+                    'train': progress_bar.loss,
+                }, counter)
 
         # Validate model every epoch
-        val_loss, val_acc = validate_model(model=model,
-                                           criterion=criterion,
-                                           valid_loader=valid_tf_loader,
-                                           tokenizer=tokenizer,
-                                           summary_writer=summary_writer,
-                                           step=(epoch+1)*epoch_steps,
-                                           verbose=True)
+        val_loss, val_acc, tf_loss, tf_acc = validate_model(
+            model=model,
+            criterion=criterion,
+            valid_loader=valid_loader,
+            valid_tf_loader=valid_tf_loader,
+            tokenizer=tokenizer,
+            summary_writer=summary_writer,
+            step=(epoch+1)*epoch_steps,
+            verbose=True)
 
-        print(f"\rEpoch: {epoch + 1}\tTrain loss: {progress_bar.loss:2.3f}" +
-              f"\tValid loss: {val_loss:2.3f}\tValid accuracy: {val_acc*100:2.4f}%")
+        print(f"\rEpoch: {epoch + 1}" +
+              f"\tTrain loss: {progress_bar.loss:2.3f}" +
+              f"\tValid loss: {val_loss:2.3f}\t" +
+              f"\tValid tf loss: {tf_loss:2.3f}\t")
 
         # Save model
         save_model(model.decoder, optimizer, epoch+1)

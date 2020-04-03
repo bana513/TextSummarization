@@ -8,19 +8,20 @@ from summarization import ProgressBar
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 
 
-def validate_model(model, criterion, valid_loader, tokenizer, summary_writer=None, step=None, verbose=True):
+def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=True):
     if verbose: print()
     model.eval()
 
-    progress_bar = ProgressBar(len(valid_loader))
+
+    progress_bar = ProgressBar(len(loader))
     progress_bar.start()
     total_acc, total_loss, n = 0, 0, 0
     with torch.no_grad():
-        for batch in valid_loader:
+        for batch in loader:
             padded_contents, _, padded_summaries, _ = batch
             max_len = padded_summaries.shape[1]
 
-            preds, _ = model(batch, teacher_forcing_ratio=1.0, max_len=max_len)
+            preds, _ = model(batch, teacher_forcing_ratio=1 if tf else 0, max_len=max_len)
             loss = criterion(preds.permute(0, 2, 1), padded_summaries.to(Config.device))
 
             total_loss += loss.item()
@@ -28,10 +29,10 @@ def validate_model(model, criterion, valid_loader, tokenizer, summary_writer=Non
             progress_bar.update()
 
         if verbose:
-            for batch in valid_loader:
+            for batch in loader:
                 padded_contents, content_sizes, padded_summaries, summary_sizes = batch
 
-                preds, attentions = model(batch, teacher_forcing_ratio=0.0, max_len=max_len)
+                preds, attentions = model(batch, teacher_forcing_ratio=0, max_len=max_len)
 
                 output = preds.argmax(2).detach().cpu()
 
@@ -48,15 +49,34 @@ def validate_model(model, criterion, valid_loader, tokenizer, summary_writer=Non
                     print("Prediction:\n" + tokenizer.decode(output_i.tolist()))
                 break
 
-        evaluate_and_show_attention(model, test_text, tokenizer,
-                                    step if step is not None else 0)
+            evaluate_and_show_attention(model, test_text, tokenizer,
+                                        step if step is not None else 0)
 
     loss, acc = total_loss / n, total_acc / n
+    return loss, acc
+
+
+def validate_model(model, criterion, valid_loader, valid_tf_loader, tokenizer, summary_writer, step=None, verbose=True):
+    if verbose: print()
+    model.eval()
+
+    # Validate on one part with teacher forcing too see predicted summaries are getting better
+    print("Validating with TF ...")
+    tf_loss, tf_acc = validate(model, criterion, valid_tf_loader, tokenizer,
+                               tf=True, step=step, verbose=verbose)
+
+    # Validate on the real validation set without teacher forcing to get real results without cheating
+    print("Validating...")
+    loss, acc = validate(model, criterion, valid_loader, tokenizer,
+                         tf=False, step=step, verbose=False)
 
     if summary_writer is not None and step is not None:
-        summary_writer.add_scalar("valid_loss", loss, step)
+        summary_writer.add_scalars('Loss', {
+            'valid_tf': tf_loss,
+            'valid': loss,
+        }, step)
 
-    return loss, acc
+    return loss, acc, tf_loss, tf_acc
 
 
 def evaluate(model, input_text, tokenizer, max_len=100):
