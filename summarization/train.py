@@ -17,6 +17,14 @@ if __name__ == '__main__':
     contents, summaries = read_dataset(Config.data_path + "hvg_tokenized_shrink.pickle")
     train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .95)
     train_contents, train_summaries, valid_tf_contents, valid_tf_summaries = split_dataset(train_contents, train_summaries, .95)
+
+    # Make model to overfit
+    train_contents = [x[:20] for x in train_contents[:3]]
+    train_summaries = [x[:20] for x in train_summaries[:3]]
+
+    valid_contents, valid_summaries = train_contents, train_summaries
+    valid_tf_contents, valid_tf_summaries = train_contents, train_summaries
+
     train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
     valid_tf_loader = get_data_loader(valid_tf_contents, valid_tf_summaries, train_set=False)
     valid_loader = get_data_loader(valid_contents, valid_summaries, train_set=False)
@@ -38,7 +46,7 @@ if __name__ == '__main__':
 
     criterion = NLLLoss(ignore_index=Config.PAD_ID)
 
-    progress_bar = ProgressBar(len(train_loader))
+    progress_bar = ProgressBar(len(train_loader), ema=0)
 
     # Tensorboard
     summary_writer = SummaryWriter(comment=Config.model_name)
@@ -76,20 +84,20 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            if progress_bar.count % 50 == 0:
-                evaluate_and_show_attention(model, test_text, tokenizer,
-                                            iteration=epoch+progress_bar.count/epoch_steps)
-                model.train()
+            # if progress_bar.count % 100 == 0:
+            #     evaluate_and_show_attention(model, test_text, tokenizer,
+            #                                 iteration=epoch+progress_bar.count/epoch_steps)
+            #     model.train()
 
             # Update tensorboard
-            if progress_bar.count % 2 == 0:
+            if progress_bar.count % 1 == 0:
                 counter = epoch * progress_bar.total_items + progress_bar.count
                 summary_writer.add_scalars('Loss', {
                     'train': progress_bar.loss,
                 }, counter)
 
         # Validate model every epoch
-        val_loss, val_acc, tf_loss, tf_acc = validate_model(
+        val_loss, val_acc, tf_loss, tf_acc, rouge1, rouge2, rougel = validate_model(
             model=model,
             criterion=criterion,
             valid_loader=valid_loader,
@@ -105,4 +113,9 @@ if __name__ == '__main__':
               f"\tValid tf loss: {tf_loss:2.3f}\t")
 
         # Save model
-        save_model(model.decoder, optimizer, epoch+1)
+
+        # if (epoch+1) % 5 == 0:
+        #     try:
+        #         save_model(model.decoder, optimizer, epoch+1)
+        #     except OSError:
+        #         print("Error while saving. Skipping...")

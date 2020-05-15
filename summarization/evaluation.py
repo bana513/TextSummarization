@@ -1,9 +1,10 @@
 import torch
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-
 from summarization import Config
 from summarization import ProgressBar
+from rouge import Rouge
+import numpy as np
 
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 
@@ -12,10 +13,11 @@ def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=T
     if verbose: print()
     model.eval()
 
-
     progress_bar = ProgressBar(len(loader))
     progress_bar.start()
     total_acc, total_loss, n = 0, 0, 0
+    total_rouge1, total_rouge2, total_rougel = 0, 0, 0
+
     with torch.no_grad():
         for batch in loader:
             padded_contents, _, padded_summaries, _ = batch
@@ -23,6 +25,36 @@ def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=T
 
             preds, _ = model(batch, teacher_forcing_ratio=1 if tf else 0, max_len=max_len)
             loss = criterion(preds.permute(0, 2, 1), padded_summaries.to(Config.device))
+
+            refs, hyps = [], []
+
+            if not tf:
+                for pred, summary in zip(preds, padded_summaries):
+                    pred = pred.argmax(1).detach().cpu()
+                    eos_index = (pred == Config.SEP_ID).nonzero()
+                    if len(eos_index) > 0:
+                        eos_index = eos_index[0].item()
+                        pred = pred[:eos_index + 1]
+
+                    eos_index = (summary == Config.SEP_ID).nonzero()
+                    if len(eos_index) > 0:
+                        eos_index = eos_index[0].item()
+                        summary = summary[:eos_index + 1]
+
+                    ref = tokenizer.decode(summary)
+                    try:
+                        hyp = tokenizer.decode(pred)
+                    except TypeError as e:
+                        hyp = "[CLS] [SEP]"
+
+                    refs.append(ref)
+                    hyps.append(hyp)
+
+
+                rouge1, rouge2, rougel = calc_rouge(hyps, refs)
+                total_rouge1 += rouge1
+                total_rouge2 += rouge2
+                total_rougel += rougel
 
             total_loss += loss.item()
             n += 1
@@ -36,7 +68,7 @@ def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=T
 
                 output = preds.argmax(2).detach().cpu()
 
-                # Print first 10 examples from first batch
+                # Print first few examples from first batch
                 for i in range(min(output.shape[0], 3)):
                     output_i = output[i]
                     eos_index = (output_i == Config.SEP_ID).nonzero()
@@ -53,7 +85,8 @@ def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=T
                                         step if step is not None else 0)
 
     loss, acc = total_loss / n, total_acc / n
-    return loss, acc
+    rouge1, rouge2, rougel = total_rouge1/n, total_rouge2/n, total_rougel/n
+    return loss, acc, rouge1, rouge2, rougel
 
 
 def validate_model(model, criterion, valid_loader, valid_tf_loader, tokenizer, summary_writer, step=None, verbose=True):
@@ -62,21 +95,26 @@ def validate_model(model, criterion, valid_loader, valid_tf_loader, tokenizer, s
 
     # Validate on one part with teacher forcing too see predicted summaries are getting better
     print("Validating with TF ...")
-    tf_loss, tf_acc = validate(model, criterion, valid_tf_loader, tokenizer,
-                               tf=True, step=step, verbose=verbose)
+    tf_loss, tf_acc, _, _, _ = validate(model, criterion, valid_tf_loader, tokenizer,
+                                        tf=True, step=step, verbose=verbose)
 
     # Validate on the real validation set without teacher forcing to get real results without cheating
     print("Validating...")
-    loss, acc = validate(model, criterion, valid_loader, tokenizer,
-                         tf=False, step=step, verbose=False)
+    loss, acc, rouge1, rouge2, rougel = validate(model, criterion, valid_loader, tokenizer,
+                                                 tf=False, step=step, verbose=False)
 
     if summary_writer is not None and step is not None:
         summary_writer.add_scalars('Loss', {
             'valid_tf': tf_loss,
             'valid': loss,
         }, step)
+        summary_writer.add_scalars('Rouge', {
+            'Rouge/rouge-1': rouge1,
+            'Rouge/rouge-2': rouge2,
+            'Rouge/rouge-L': rougel
+        }, step)
 
-    return loss, acc, tf_loss, tf_acc
+    return loss, acc, tf_loss, tf_acc, rouge1, rouge2, rougel
 
 
 def evaluate(model, input_text, tokenizer, max_len=100):
@@ -132,3 +170,15 @@ def evaluate_and_show_attention(model, input_text, tokenizer, iteration=0, to_fi
     print('\ninput = ', ' '.join(encoded_input))
     print('output =', ' '.join(output_words))
     show_attention(encoded_input, output_words, attentions, iteration, to_file)
+
+
+def calc_rouge(hyps, refs):
+    try:
+        rouge = Rouge()
+        scores = rouge.get_scores(hyps, refs, avg=True)
+        rouge1 = scores["rouge-1"]["f"]
+        rouge2 = scores["rouge-2"]["f"]
+        rougel = scores["rouge-l"]["f"]
+        return rouge1, rouge2, rougel
+    except Exception as e:
+        return 0, 0, 0

@@ -12,20 +12,34 @@ from summarization import get_mask_from_lengths
 
 def shrink_embedding_layer(embedding_layer):
     token_ids = UsedBertTokens.get_instance().token_ids
-    embedding_layer.weight.data = embedding_layer.weight[token_ids]
-
+    emb_layer = nn.Embedding(len(token_ids), embedding_dim=Config.encoder_dim)
+    # embedding_layer.weight.data = embedding_layer.weight[token_ids]
+    return emb_layer
 
 class BertSummarizer(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.encoder = BertModel.from_pretrained('bert-base-multilingual-cased')
-        for p in self.encoder.parameters():
-            p.requires_grad = False
-        self.encoder.eval()
+        # self.encoder = BertModel.from_pretrained('bert-base-multilingual-cased')
+        # for p in self.encoder.parameters():
+        #     p.requires_grad = False
+        # self.encoder.eval()
+        # self.encoder.train()
 
-        bert_embedding_layer = self.encoder.embeddings.word_embeddings
-        self.decoder = Decoder(bert_embedding_layer).to(Config.device)
+
+        # bert =  BertModel.from_pretrained('bert-base-multilingual-cased')
+        # bert.train()
+        # self.bert_embedding_layer = bert.embeddings.word_embeddings
+
+        self.bert_embedding_layer = shrink_embedding_layer(None)
+
+        self.encoder = nn.LSTM(input_size=Config.encoder_dim,
+                               hidden_size=Config.encoder_dim//2,
+                               num_layers=1,
+                               batch_first=True,
+                               bidirectional=True)
+
+        self.decoder = Decoder(self.bert_embedding_layer)
         self.decoder.train()
 
     def forward(self, batch, teacher_forcing_ratio=1.0, max_len=256):
@@ -37,8 +51,9 @@ class BertSummarizer(nn.Module):
 
         attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
 
-        with torch.no_grad():
-            features, _ = self.encoder(padded_contents, attention_mask=attn_mask)
+        # with torch.no_grad():
+        embs = self.bert_embedding_layer(padded_contents) # TODO
+        features, _ = self.encoder(embs) # attention_mask=attn_mask
 
         output, attentions = self.decoder(features, attn_mask, padded_summaries, teacher_forcing_ratio, max_len)
         return output, attentions
