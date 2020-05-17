@@ -24,8 +24,10 @@ class SummarizationDataset(Dataset):
         self.batch_size = batch_size
 
         assert len(contents) == len(summaries)
-        self.contents = contents
-        self.summaries = summaries
+
+        self.summaries = [s for c, s in zip(contents, summaries) if len(c) <= Config.max_content_len]
+        self.contents = [c for c in contents if len(c) <= Config.max_content_len]
+
 
     def __getitem__(self, idx):
         return torch.LongTensor(self.contents[idx]), torch.LongTensor(self.summaries[idx])
@@ -48,7 +50,7 @@ def collate(batch):
 def get_data_loader(contents, summaries, train_set=True):
     dataset = SummarizationDataset(contents, summaries, Config.batch_size)
     sampler = NoisySortedBatchSampler(dataset,
-                                      batch_size=Config.batch_size if train_set else 1 * Config.batch_size,
+                                      batch_size=Config.batch_size if train_set else 2 * Config.batch_size,
                                       drop_last=True,
                                       shuffle=True if train_set else False,
                                       sort_key_noise=0.02 if train_set else 0)
