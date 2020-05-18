@@ -24,31 +24,24 @@ class BertSummarizer(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # self.encoder = BertModel.from_pretrained('bert-base-multilingual-cased')
-        # for p in self.encoder.parameters():
+        self.bert = BertModel.from_pretrained('bert-base-multilingual-cased')
+        # for p in self.bert.parameters():
         #     p.requires_grad = False
-        # self.encoder.eval()
-        # self.encoder.train()
+        # self.bert.eval()
 
-
-        bert =  BertModel.from_pretrained('bert-base-multilingual-cased')
-        bert.train()
-        self.embedding_layer = bert.embeddings.word_embeddings
-
-        self.embedding_layer = shrink_embedding_layer(self.embedding_layer)
-        self.embedding_layer.weight.requires_grad = False
+        self.embedding_layer = shrink_embedding_layer(self.bert.embeddings.word_embeddings)
 
         # self.encoder = nn.LSTM(input_size=Config.encoder_dim,
         #                        hidden_size=Config.encoder_dim//2,
         #                        num_layers=3,
         #                        batch_first=True,
         #                        bidirectional=True)
-        self.encoder = Encoder()
+        # self.encoder = Encoder()
 
         # Calculate total reduction to create correct attention plots
         total_reduction = 1
-        for cell in self.encoder.encoder:
-            total_reduction *= cell.reduction
+        # for cell in self.encoder.encoder:
+        #     total_reduction *= cell.reduction
 
         self.decoder = Decoder(self.embedding_layer, total_reduction)
         self.decoder.train()
@@ -60,12 +53,12 @@ class BertSummarizer(nn.Module):
         if padded_summaries is not None:
             padded_summaries = padded_summaries.to(Config.device)
 
-        with torch.no_grad():
-            embs = self.embedding_layer(padded_contents)
-
-        features, content_sizes = self.encoder(embs, content_sizes)
-
         attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
+        # with torch.no_grad():
+        features, _ = self.bert(padded_contents, attention_mask=attn_mask)
+
+        # features, content_sizes = self.encoder(features, content_sizes)
+        # attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
 
         output, attentions = self.decoder(features, attn_mask, padded_summaries, teacher_forcing_ratio, max_len)
         return output, attentions
@@ -135,7 +128,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, bert_embedding, total_reduction):
         super().__init__()
-        self.decoder = nn.LSTM(input_size=2*Config.encoder_dim + Config.embedding_dim,
+        self.decoder = nn.LSTM(input_size=Config.encoder_dim + Config.embedding_dim,
                                hidden_size=Config.decoder_dim,
                                batch_first=True)
 
@@ -143,13 +136,13 @@ class Decoder(nn.Module):
         self.total_reduction = total_reduction
 
         self.query_transform = nn.Linear(in_features=Config.decoder_dim, out_features=Config.attention_dim)
-        self.key_transform = nn.Linear(in_features=2*Config.encoder_dim, out_features=Config.attention_dim)
+        self.key_transform = nn.Linear(in_features=Config.encoder_dim, out_features=Config.attention_dim)
         self.attention = BahdanauAttention(Config.attention_dim)
         self.decoder_linear = nn.Linear(in_features=Config.decoder_dim, out_features=Config.decoder_token_num)
 
         # initializations
-        nn.init.xavier_uniform_(self.query_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
-        nn.init.xavier_uniform_(self.key_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
+        nn.init.xavier_uniform_(self.query_transform.weight, gain=torch.nn.init.calculate_gain("tanh")/2)
+        nn.init.xavier_uniform_(self.key_transform.weight, gain=torch.nn.init.calculate_gain("tanh")/2)
         nn.init.xavier_uniform_(self.decoder_linear.weight, gain=torch.nn.init.calculate_gain("linear"))
 
     def forward(self, features, attn_mask, padded_summaries, teacher_forcing_ratio, max_len):
@@ -187,8 +180,8 @@ class Decoder(nn.Module):
         query = torch.tanh(self.query_transform(hidden[0].transpose(0, 1)))
         context, attention = self.attention(q=query, k=key, v=input, mask=mask)
 
-        with torch.no_grad():
-            embs = self.bert_embedding(prev_word)
+        # with torch.no_grad():
+        embs = self.bert_embedding(prev_word)
 
         combined = torch.cat((context, embs), 1).unsqueeze(1)
 
@@ -209,6 +202,7 @@ class BahdanauAttention(nn.Module):
 
     def forward(self, q, k, v, mask=None):
         energy = self.energy_linear(torch.tanh(q + k).float()).squeeze(2)
+
         if mask is not None:
             energy.masked_fill_(mask.squeeze(1), -np.inf)
 

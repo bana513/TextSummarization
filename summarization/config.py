@@ -11,7 +11,7 @@ class Config:
     load_state = None  # Set None for new model
 
     # Tensorboard info
-    model_name = "lstm_encoder"
+    model_name = "bert_lstm"
 
     if on_server:
         device = torch.device("cuda:1")
@@ -21,25 +21,25 @@ class Config:
     else:
         device = torch.device("cuda:0")
         data_path = "D:/Data/text_summarization/"  # local path
-        batch_size = 32
+        batch_size = 8
 
     # Parameters:
     lr = 1e-3
-    num_epochs = 10
-    num_warmup_steps = 100
+    num_epochs = 20
+    num_warmup_steps = 1000
     max_len = 512
     vocab_size = decoder_token_num = None
     grad_clip = .5
-    max_content_len = 128
+    max_content_len = 256
 
-    decoder_dim = 768
+    decoder_dim = 512
     encoder_dim = 768
-    attention_dim = 256
+    attention_dim = 128
     embedding_dim = 768
 
     # Dropouts
     input_drop = 0.1
-    output_drop = 0.3
+    output_drop = 0.1
     hidden_drop = 0.1
     weight_drop = 0.1
 

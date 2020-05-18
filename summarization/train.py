@@ -42,9 +42,9 @@ if __name__ == '__main__':
     progress_bar = ProgressBar(len(train_loader), ema=0)
 
     # Tensorboard
-    # summary_writer = SummaryWriter(comment=Config.model_name)
-    # summary_writer.add_hparams({k: str(v) for k, v in Config.__dict__.items() if not k.startswith('__')}, {})
-    # summary_writer.add_hparams({"epoch_steps": epoch_steps}, {})
+    summary_writer = SummaryWriter(comment=Config.model_name)
+    summary_writer.add_hparams({k: str(v) for k, v in Config.__dict__.items() if not k.startswith('__')}, {})
+    summary_writer.add_hparams({"epoch_steps": epoch_steps}, {})
 
     if Config.load_state is not None:
         load_model(model.decoder, optimizer, Config.load_state)
@@ -77,9 +77,28 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            if progress_bar.count % 10 == 0:
-                evaluate_and_show_attention(model, test_text, tokenizer,
-                                            iteration=epoch+progress_bar.count/epoch_steps)
+            # if progress_bar.count % 500 == 0:
+            #     evaluate_and_show_attention(model, test_text, tokenizer,
+            #                                 iteration=epoch+progress_bar.count/epoch_steps)
+            #     model.train()
+
+            if progress_bar.count % 500 == 0:
+                # Validate model every epoch
+                val_loss, val_acc, tf_loss, tf_acc, rouge1, rouge2, rougel = validate_model(
+                    model=model,
+                    criterion=criterion,
+                    valid_loader=valid_loader,
+                    valid_tf_loader=valid_tf_loader,
+                    tokenizer=tokenizer,
+                    summary_writer=summary_writer,
+                    step=epoch * epoch_steps + progress_bar.count,
+                    verbose=True)
+
+                print(f"\rEpoch: {epoch + 1}" +
+                      f"\tTrain loss: {progress_bar.loss:2.3f}" +
+                      f"\tValid loss: {val_loss:2.3f}\t" +
+                      f"\tValid tf loss: {tf_loss:2.3f}\t")
+
                 model.train()
 
             # Update tensorboard
@@ -109,8 +128,9 @@ if __name__ == '__main__':
               f"\tValid tf loss: {tf_loss:2.3f}\t")
 
         # Save model
-        if (epoch+1) % 5 == 0:
+        if (epoch+1) % 1 == 0:
             try:
+                print("Saving model...")
                 save_model(model.decoder, optimizer, epoch+1)
             except OSError:
                 print("Error while saving. Skipping...")
