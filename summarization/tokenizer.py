@@ -3,8 +3,8 @@ import pickle
 
 from transformers import BertTokenizer
 
-token_id_list = "used_token_ids_4000.pickle"
-config_unk_id = 100
+token_id_list = "used_token_ids_4000.pkl"
+config_unk_id = 1
 
 class UsedBertTokens:
     """Singleton class"""

@@ -8,7 +8,7 @@ class Config:
     on_server = False
 
     # Load model
-    load_state = None  # Set None for new model
+    load_state = 20  # Set None for new model
 
     # Tensorboard info
     model_name = "bert_lstm_dropout_4000"
@@ -24,8 +24,8 @@ class Config:
         batch_size = 16
 
     # Parameters:
-    lr = 1e-3
-    num_epochs = 20
+    lr = 3e-3
+    num_epochs = 30
     num_warmup_steps = 1000
     max_len = 512
     vocab_size = decoder_token_num = None
@@ -51,8 +51,8 @@ class Config:
 
     PAD_ID, UNK_ID, CLS_ID, SEP_ID, MASK_ID, S_ID, T_ID = 0, 1, 2, 3, 4, 5, 6 # 0, 100, 101, 102, 103, 104, 105
 
-    token_id_list = "used_token_ids_4000.pickle"
-    tokenized_data_file = "hvg_tokenized_shrink_4000.pickle"
+    # token_id_list = "used_token_ids_4000.pkl"
+    tokenized_data_file = "hvg_tokenized_shrink_4000.pkl"
 
     def __init__(self):
         if Config.device.type == 'cuda':

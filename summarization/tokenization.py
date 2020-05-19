@@ -8,7 +8,7 @@ from summarization.tokenizer import SmartTokenizer
 
 if __name__ == "__main__":
     Config()
-    df = pd.read_csv(Config.data_path + "hvg.csv")
+    df = pd.read_csv(Config.data_path + "hvg_lang_cleaned.csv")
 
     # tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
     tokenizer = SmartTokenizer()

@@ -130,7 +130,6 @@ if __name__ == '__main__':
         # Save model
         if (epoch+1) % 1 == 0:
             try:
-                print("Saving model...")
                 save_model(model.decoder, optimizer, epoch+1)
             except OSError:
                 print("Error while saving. Skipping...")
