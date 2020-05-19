@@ -14,9 +14,9 @@ if __name__ == '__main__':
 
     tokenizer = SmartTokenizer()
 
-    contents, summaries = read_dataset(Config.data_path + "hvg_tokenized_shrink.pickle")
-    train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .95)
-    train_contents, train_summaries, valid_tf_contents, valid_tf_summaries = split_dataset(train_contents, train_summaries, .95)
+    contents, summaries = read_dataset(Config.data_path + Config.tokenized_data_file)
+    train_contents, train_summaries, valid_contents, valid_summaries = split_dataset(contents, summaries, .97)
+    train_contents, train_summaries, valid_tf_contents, valid_tf_summaries = split_dataset(train_contents, train_summaries, .97)
 
     train_loader = get_data_loader(train_contents, train_summaries, train_set=True)
     valid_tf_loader = get_data_loader(valid_tf_contents, valid_tf_summaries, train_set=False)
@@ -77,12 +77,12 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            # if progress_bar.count % 500 == 0:
-            #     evaluate_and_show_attention(model, test_text, tokenizer,
-            #                                 iteration=epoch+progress_bar.count/epoch_steps)
-            #     model.train()
-
             if progress_bar.count % 500 == 0:
+                evaluate_and_show_attention(model, test_text, tokenizer,
+                                            iteration=epoch+progress_bar.count/epoch_steps)
+                model.train()
+
+            if progress_bar.count % 2000 == 0:
                 # Validate model every epoch
                 val_loss, val_acc, tf_loss, tf_acc, rouge1, rouge2, rougel = validate_model(
                     model=model,

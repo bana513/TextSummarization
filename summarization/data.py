@@ -28,7 +28,6 @@ class SummarizationDataset(Dataset):
         self.summaries = [s for c, s in zip(contents, summaries) if len(c) <= Config.max_content_len]
         self.contents = [c for c in contents if len(c) <= Config.max_content_len]
 
-
     def __getitem__(self, idx):
         return torch.LongTensor(self.contents[idx]), torch.LongTensor(self.summaries[idx])
 

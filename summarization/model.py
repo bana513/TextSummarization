@@ -25,9 +25,9 @@ class BertSummarizer(nn.Module):
         super().__init__()
 
         self.bert = BertModel.from_pretrained('bert-base-multilingual-cased')
-        # for p in self.bert.parameters():
-        #     p.requires_grad = False
-        # self.bert.eval()
+        for p in self.bert.parameters():
+            p.requires_grad = False
+        self.bert.eval()
 
         self.embedding_layer = shrink_embedding_layer(self.bert.embeddings.word_embeddings)
 
@@ -128,7 +128,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, bert_embedding, total_reduction):
         super().__init__()
-        self.decoder = nn.LSTM(input_size=Config.encoder_dim + Config.embedding_dim,
+        self.decoder = nn.LSTM(input_size=Config.value_dim + Config.embedding_dim,
                                hidden_size=Config.decoder_dim,
                                batch_first=True)
 
@@ -137,12 +137,19 @@ class Decoder(nn.Module):
 
         self.query_transform = nn.Linear(in_features=Config.decoder_dim, out_features=Config.attention_dim)
         self.key_transform = nn.Linear(in_features=Config.encoder_dim, out_features=Config.attention_dim)
+        self.value_transform = nn.Linear(in_features=Config.encoder_dim, out_features=Config.value_dim)
         self.attention = BahdanauAttention(Config.attention_dim)
         self.decoder_linear = nn.Linear(in_features=Config.decoder_dim, out_features=Config.decoder_token_num)
+
+        self.query_dropout = nn.Dropout(Config.q_drop)
+        self.key_dropout = nn.Dropout(Config.k_drop)
+        self.value_dropout = nn.Dropout(Config.v_drop)
+        self.lsmt_out_dropout = nn.Dropout(Config.lstm_out_drop)
 
         # initializations
         nn.init.xavier_uniform_(self.query_transform.weight, gain=torch.nn.init.calculate_gain("tanh")/2)
         nn.init.xavier_uniform_(self.key_transform.weight, gain=torch.nn.init.calculate_gain("tanh")/2)
+        nn.init.xavier_uniform_(self.value_transform.weight, gain=torch.nn.init.calculate_gain("tanh"))
         nn.init.xavier_uniform_(self.decoder_linear.weight, gain=torch.nn.init.calculate_gain("linear"))
 
     def forward(self, features, attn_mask, padded_summaries, teacher_forcing_ratio, max_len):
@@ -152,13 +159,16 @@ class Decoder(nn.Module):
                   torch.zeros((1, batch_size, Config.decoder_dim), device=features.device))
 
         keys = torch.tanh(self.key_transform(features))
+        keys = self.key_dropout(keys)
+        values = torch.tanh(self.value_transform(features))
+        values = self.value_dropout(values)
 
         # Decoding
         prev_words = []
         attentions = []
         if padded_summaries is not None: max_len = padded_summaries.shape[1]
         for s in range(max_len):
-            prev_word, hidden, attention = self.step(features, attn_mask, keys, prev_word, hidden)
+            prev_word, hidden, attention = self.step(values, attn_mask, keys, prev_word, hidden)
             prev_words.append(prev_word)
             attentions.append(attention)
 
@@ -178,16 +188,18 @@ class Decoder(nn.Module):
 
     def step(self, input, mask, key, prev_word, hidden):
         query = torch.tanh(self.query_transform(hidden[0].transpose(0, 1)))
+        query = self.query_dropout(query)
         context, attention = self.attention(q=query, k=key, v=input, mask=mask)
 
-        # with torch.no_grad():
-        embs = self.bert_embedding(prev_word)
+        with torch.no_grad():
+            embs = self.bert_embedding(prev_word)
 
         combined = torch.cat((context, embs), 1).unsqueeze(1)
 
         output, hidden = self.decoder(combined, hidden)
 
         # output shape bs x seq_len x emb_dim
+        output = self.lsmt_out_dropout(output)
         output = self.decoder_linear(output).squeeze(1)
         output = F.log_softmax(output, dim=-1)
         return output, hidden, attention

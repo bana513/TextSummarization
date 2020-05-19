@@ -3,6 +3,8 @@ import pickle
 
 from transformers import BertTokenizer
 
+token_id_list = "used_token_ids_4000.pickle"
+config_unk_id = 100
 
 class UsedBertTokens:
     """Singleton class"""
@@ -22,7 +24,7 @@ class UsedBertTokens:
             raise Exception("This class is a singleton!")
         else:
             UsedBertTokens.__instance = self
-            with open(data_path + "used_token_ids.pickle", 'rb') as f:
+            with open(data_path + token_id_list, 'rb') as f:
                 self.token_ids = pickle.load(f)
 
 
@@ -32,7 +34,7 @@ class SmartTokenizer:
     what allows to train smaller models
     """
 
-    def __init__(self, UNK_ID=100):
+    def __init__(self, UNK_ID=config_unk_id):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased', do_lower_case=False)
 
         token_ids = UsedBertTokens.get_instance().token_ids
