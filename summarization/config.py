@@ -6,14 +6,14 @@ import matplotlib
 
 class Config:
     on_server = False
-    train_encoder = True
+    train_encoder = False
 
     # Load model
     load_state = None  # Set None for new model
 
 
     # Tensorboard info
-    model_name = "bert_lstm_weighted"
+    model_name = "bert_lstm"
 
     if on_server:
         device = torch.device("cuda:1")
@@ -54,8 +54,8 @@ class Config:
     PAD_ID, UNK_ID, CLS_ID, SEP_ID, MASK_ID, S_ID, T_ID = 0, 1, 2, 3, 4, 5, 6 # 0, 100, 101, 102, 103, 104, 105
 
     # token_id_list = "used_token_ids_4000.pkl"
-    tokenized_data_file = "hvg_tokenized_shrink_4000.pkl"
-    token_weight_file = "token_weights_4000.pkl"
+    tokenized_data_file = "hvg_tokenized_shrink_10000.pkl"
+    token_weight_file = None  # "token_weights_4000.pkl"
 
     def __init__(self):
         if Config.device.type == 'cuda':

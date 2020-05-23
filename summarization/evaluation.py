@@ -9,7 +9,8 @@ import numpy as np
 test_text = "Egy ember életét vesztette, amikor két személygépkocsi ütközött az 1-es főúton Bicskénél közölte a Fejér Megyei Rendőr-főkapitányság szóvivője. A balesetben hárman sérültek meg, egy ember olyan súlyosan, hogy a helyszínen meghalt. A rendőrség a helyszínelés idejére teljesen lezárta az érintett útszakaszt, a forgalmat Bicske belterületén keresztül terelik el."
 test_text2 = "Szalmonellával fertőzött baromfitermékeket vontak ki a forgalomból az Európai Unióban – írja a Nébih tájékoztatása alapján a Magyar Nemzet. A Lengyelországból származó termékek miatt a szlovákiai hatóságoknak kellett intézkedniük, a litvánok pedig az uniós gyorsriasztási rendszeren (RASFF) tettek bejelentést, ebből kiderült, hogy két magyar kereskedőhöz is eljutott fertőzött csirkemájból mintegy 800 kiló. A termékek esetében a Nébih már intézkedett."
 
-def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=True):
+
+def validate(model, criterion, loader, tokenizer, tf=False, epoch=None, verbose=True):
     if verbose: print()
     model.eval()
 
@@ -82,9 +83,9 @@ def validate(model, criterion, loader, tokenizer, tf=False, step=None, verbose=T
                 break
 
             evaluate_and_show_attention(model, test_text, tokenizer,
-                                        step if step is not None else 0)
+                                        epoch if epoch is not None else 0)
             evaluate_and_show_attention(model, test_text2, tokenizer,
-                                        step if step is not None else 0)
+                                        epoch if epoch is not None else 0)
 
     loss, acc = total_loss / n, total_acc / n
     rouge1, rouge2, rougel = total_rouge1/n, total_rouge2/n, total_rougel/n
@@ -98,12 +99,12 @@ def validate_model(model, criterion, valid_loader, valid_tf_loader, tokenizer, s
     # Validate on one part with teacher forcing too see predicted summaries are getting better
     print("Validating with TF ...")
     tf_loss, tf_acc, _, _, _ = validate(model, criterion, valid_tf_loader, tokenizer,
-                                        tf=True, step=epoch*epoch_steps, verbose=verbose)
+                                        tf=True, epoch=epoch, verbose=verbose)
 
     # Validate on the real validation set without teacher forcing to get real results without cheating
     print("Validating...")
     loss, acc, rouge1, rouge2, rougel = validate(model, criterion, valid_loader, tokenizer,
-                                                 tf=False, step=epoch*epoch_steps, verbose=False)
+                                                 tf=False, epoch=epoch, verbose=False)
 
     if summary_writer is not None and epoch is not None:
         summary_writer.add_scalars('Loss', {

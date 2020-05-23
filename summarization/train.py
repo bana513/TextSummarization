@@ -57,18 +57,39 @@ if __name__ == '__main__':
     if Config.load_state is not None:
         load_model(model.decoder, optimizer, Config.load_state)
 
+    running_acc = None
+    adaptive_summary_len = 3
+    increase_sum_len = 0
+
     for epoch in range(0 if Config.load_state is None else Config.load_state,
                        Config.num_epochs):
         model.train()
         progress_bar.start()
 
         for batch in train_loader:
+
+            content_tensors, content_lengths, summary_tensors, summary_lengths = batch
+            summary_tensors = summary_tensors[:, :adaptive_summary_len]
+            summary_lengths.clamp_(0, 3)
+
             # Forward step
             preds, attns = model(batch)  # batch = (content_tensors, content_lengths, summary_tensors, summary_lengths)
 
             # Calculate loss
-            target = batch[2]
-            loss = criterion(preds.permute(0, 2, 1), target.to(Config.device))
+            target = batch[2].to(Config.device)
+            target[target == Config.UNK_ID] = Config.PAD_ID
+            loss = criterion(preds.permute(0, 2, 1), target)
+
+            # Calculate accuracy
+            pred_id = preds.argmax(2)
+            acc = (pred_id == target).float().mean().cpu()
+            running_acc = running_acc * .95 + acc * 0.05 if running_acc is not None else acc
+            if running_acc > .1:
+                increase_sum_len += 1
+                if increase_sum_len == 10:
+                    adaptive_summary_len += 1
+            else:
+                increase_sum_len = 0
 
             # Calculate gradients
             loss.backward()
@@ -85,7 +106,7 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            if progress_bar.count % 400 == 0:
+            if progress_bar.count % 200 == 0:
                 evaluate_and_show_attention(model, test_text, tokenizer,
                                             iteration=epoch + progress_bar.count / epoch_steps)
                 evaluate_and_show_attention(model, test_text2, tokenizer,
@@ -113,11 +134,17 @@ if __name__ == '__main__':
                 model.train()
 
             # Update tensorboard
-            if progress_bar.count % 20 == 0:
+            if progress_bar.count % 10 == 0:
                 try:
                     counter = epoch * progress_bar.total_items + progress_bar.count
                     summary_writer.add_scalars('Loss', {
                         'train': progress_bar.loss,
+                    }, counter)
+                    summary_writer.add_scalars('Acc', {
+                        'train': running_acc,
+                    }, counter)
+                    summary_writer.add_scalars('Summary len', {
+                        'train': adaptive_summary_len,
                     }, counter)
                 except Exception as e:
                     print("Summary writer error")
