@@ -1,3 +1,5 @@
+import pickle
+
 import torch
 from torch.nn import NLLLoss
 from torch.optim.adamw import AdamW
@@ -5,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from transformers import get_linear_schedule_with_warmup
 
 from summarization import Config, load_model, read_dataset, split_dataset, get_data_loader, \
-    evaluate_and_show_attention, test_text, validate_model, BertSummarizer, ProgressBar,\
+    evaluate_and_show_attention, test_text, test_text2, validate_model, BertSummarizer, ProgressBar,\
     SmartTokenizer, save_model
 
 if __name__ == '__main__':
@@ -37,7 +39,13 @@ if __name__ == '__main__':
                                                 num_warmup_steps=Config.num_warmup_steps,
                                                 num_training_steps=num_training_steps)
 
-    criterion = NLLLoss(ignore_index=Config.PAD_ID)
+    if Config.token_weight_file is not None:
+        with open(Config.data_path + Config.token_weight_file, 'rb') as f:
+            token_weights = pickle.load(f)
+        token_weights = torch.Tensor(token_weights).to(Config.device)
+    else:
+        token_weights = None
+    criterion = NLLLoss(ignore_index=Config.PAD_ID, weight=token_weights)
 
     progress_bar = ProgressBar(len(train_loader), ema=0)
 
@@ -77,9 +85,11 @@ if __name__ == '__main__':
             progress_bar.progress()
 
             # Show attention plot
-            if progress_bar.count % 500 == 0:
+            if progress_bar.count % 400 == 0:
                 evaluate_and_show_attention(model, test_text, tokenizer,
-                                            iteration=epoch+progress_bar.count/epoch_steps)
+                                            iteration=epoch + progress_bar.count / epoch_steps)
+                evaluate_and_show_attention(model, test_text2, tokenizer,
+                                            iteration=epoch + progress_bar.count / epoch_steps)
                 model.train()
 
             if progress_bar.count % 2000 == 0:
@@ -91,7 +101,8 @@ if __name__ == '__main__':
                     valid_tf_loader=valid_tf_loader,
                     tokenizer=tokenizer,
                     summary_writer=summary_writer,
-                    step=epoch * epoch_steps + progress_bar.count,
+                    epoch=epoch+progress_bar.count/epoch_steps,
+                    epoch_steps=epoch_steps,
                     verbose=True)
 
                 print(f"\rEpoch: {epoch + 1}" +
@@ -119,7 +130,8 @@ if __name__ == '__main__':
             valid_tf_loader=valid_tf_loader,
             tokenizer=tokenizer,
             summary_writer=summary_writer,
-            step=(epoch+1)*epoch_steps,
+            epoch=epoch+1,
+            epoch_steps=epoch_steps,
             verbose=True)
 
         print(f"\rEpoch: {epoch + 1}" +

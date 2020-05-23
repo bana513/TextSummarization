@@ -25,18 +25,13 @@ class BertSummarizer(nn.Module):
         super().__init__()
 
         self.bert = BertModel.from_pretrained('bert-base-multilingual-cased')
-        for p in self.bert.parameters():
-            p.requires_grad = False
-        self.bert.eval()
+
+        if not Config.train_encoder:
+            for p in self.bert.parameters():
+                p.requires_grad = False
+            self.bert.eval()
 
         self.embedding_layer = shrink_embedding_layer(self.bert.embeddings.word_embeddings)
-
-        # self.encoder = nn.LSTM(input_size=Config.encoder_dim,
-        #                        hidden_size=Config.encoder_dim//2,
-        #                        num_layers=3,
-        #                        batch_first=True,
-        #                        bidirectional=True)
-        # self.encoder = Encoder()
 
         # Calculate total reduction to create correct attention plots
         total_reduction = 1
@@ -54,8 +49,12 @@ class BertSummarizer(nn.Module):
             padded_summaries = padded_summaries.to(Config.device)
 
         attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
-        # with torch.no_grad():
-        features, _ = self.bert(padded_contents, attention_mask=attn_mask)
+
+        if Config.train_encoder:
+            features, _ = self.bert(padded_contents, attention_mask=attn_mask)
+        else:
+            with torch.no_grad():
+                features, _ = self.bert(padded_contents, attention_mask=attn_mask)
 
         # features, content_sizes = self.encoder(features, content_sizes)
         # attn_mask = get_mask_from_lengths(content_sizes).to(Config.device)
@@ -191,8 +190,11 @@ class Decoder(nn.Module):
         query = self.query_dropout(query)
         context, attention = self.attention(q=query, k=key, v=input, mask=mask)
 
-        with torch.no_grad():
+        if Config.train_encoder:
             embs = self.bert_embedding(prev_word)
+        else:
+            with torch.no_grad():
+                embs = self.bert_embedding(prev_word)
 
         combined = torch.cat((context, embs), 1).unsqueeze(1)
 
